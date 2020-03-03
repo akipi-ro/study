@@ -1,0 +1,194 @@
+#興味推定のプログラム
+
+
+# coding: UTF-8
+import math
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score
+
+
+# シグモイド関数
+def sigmoid(a):
+    return 1.0 / (1.0 + math.exp(-a))
+
+
+# ニューロン
+class Neuron:
+    input_sum = 0.0
+    output = 0.0
+
+    def setInput(self, inp):
+        self.input_sum += inp
+
+    def getOutput(self):
+        self.output = sigmoid(self.input_sum)  # ニューロンの中に関数を入れる
+        return self.output
+
+    def reset(self):
+        self.input_sum = 0  # selfはインスタンスを持ってくるときに書く
+        self.output = 0
+
+
+# ニューラルネットワーク
+import random
+class NeuralNetwork:
+    # 重み    #1個目                    #2個目   3個目       4個目        5個目（バイアス）
+    w_im = [[random.uniform(-0.99, 0.99),random.uniform(-0.99, 0.99)],
+            [random.uniform(-0.99, 0.99),random.uniform(-0.99, 0.99)],
+            [random.uniform(-0.99, 0.99),random.uniform(-0.99, 0.99)],
+            [random.uniform(-0.99, 0.99),random.uniform(-0.99, 0.99)],
+            [random.uniform(-0.99, 0.99),random.uniform(-0.99, 0.99)]]#追加
+    w_mo = [random.uniform(-0.99, 0.99),random.uniform(-0.99, 0.99),random.uniform(-0.99, 0.99)]#中間層の重み
+
+    # 各層の宣言
+    input_layer = [0.0,0.0,0.0,0.0,1.0]  # バイアスの値はどう決めるのか？
+    middle_layer = [Neuron(), Neuron(), 1.0]
+    output_layer = Neuron()  #プロパティ
+
+    # 実行
+    def commit(self, input_data):
+        # 各層のリセット
+        self.input_layer[0] = input_data[0]  
+        self.input_layer[1] = input_data[1]
+        self.input_layer[2] = input_data[2]#3個目 #追加
+        self.input_layer[3] = input_data[3]#4コメ　#追加
+
+        self.middle_layer[0].reset()
+        self.middle_layer[1].reset()  # 最初に初期化する
+
+        self.output_layer.reset()
+
+        # 入力層→中間層
+        self.middle_layer[0].setInput(self.input_layer[0] * self.w_im[0][0])#中間の1に対して
+        self.middle_layer[0].setInput(self.input_layer[1] * self.w_im[1][0])
+        self.middle_layer[0].setInput(self.input_layer[2] * self.w_im[2][0])
+        self.middle_layer[0].setInput(self.input_layer[3] * self.w_im[3][0])#4個目 #追加
+        self.middle_layer[0].setInput(self.input_layer[4] * self.w_im[4][0])#バイアス#追加
+
+        self.middle_layer[1].setInput(self.input_layer[0] * self.w_im[0][1])#中間の２に対して
+        self.middle_layer[1].setInput(self.input_layer[1] * self.w_im[1][1])
+        self.middle_layer[1].setInput(self.input_layer[2] * self.w_im[2][1])
+        self.middle_layer[1].setInput(self.input_layer[3] * self.w_im[3][1])#4個目
+        self.middle_layer[1].setInput(self.input_layer[4] * self.w_im[4][1])  # バイアス   #追加
+
+
+        # 中間層→出力層
+        self.output_layer.setInput(self.middle_layer[0].getOutput() * self.w_mo[0])
+        self.output_layer.setInput(self.middle_layer[1].getOutput() * self.w_mo[1])
+        self.output_layer.setInput(self.middle_layer[2] * self.w_mo[2])
+
+        return self.output_layer.getOutput()
+
+    def learn(self, input_data):
+        # 出力値
+        output_data = self.commit([input_data[0], input_data[1],input_data[2],input_data[3]]) #追加
+        # 正解値
+        correct_value = input_data[4]#変更済み　教師データ
+        # 学習係数  自分で決めるハイパーパラメータ
+        k = 0.1
+
+        # 出力層→中間層   
+        delta_w_mo = (correct_value - output_data) * output_data * (1.0 - output_data)
+        old_w_mo = list(self.w_mo)
+        self.w_mo[0] += self.middle_layer[0].output * delta_w_mo * k
+        self.w_mo[1] += self.middle_layer[1].output * delta_w_mo * k
+        self.w_mo[2] += self.middle_layer[2] * delta_w_mo * k
+
+        # 中間層→入力層
+        delta_w_im = [
+            delta_w_mo * old_w_mo[0] * self.middle_layer[0].output * (1.0 - self.middle_layer[0].output),
+            delta_w_mo * old_w_mo[1] * self.middle_layer[1].output * (1.0 - self.middle_layer[1].output),
+        ]
+        self.w_im[0][0] += self.input_layer[0] * delta_w_im[0] * k
+        self.w_im[0][1] += self.input_layer[0] * delta_w_im[1] * k
+        self.w_im[1][0] += self.input_layer[1] * delta_w_im[0] * k
+        self.w_im[1][1] += self.input_layer[1] * delta_w_im[1] * k          
+        self.w_im[2][0] += self.input_layer[2] * delta_w_im[0] * k
+        self.w_im[2][1] += self.input_layer[2] * delta_w_im[1] * k
+        self.w_im[3][0] += self.input_layer[3] * delta_w_im[0] * k　#追加
+        self.w_im[3][1] += self.input_layer[3] * delta_w_im[1] * k　#追加
+        self.w_im[4][0] += self.input_layer[4] * delta_w_im[0] * k  # 追加
+        self.w_im[4][1] += self.input_layer[4] * delta_w_im[1] * k  # 追加
+
+
+# ファイルの読み込み
+training_data = []
+training_data_file = open("テキスト入力データ", "r")
+for line in training_data_file:
+    line = line.rstrip().split(",")
+
+    training_data.append([(float(line[0])), float(line[1]),float(line[2]),float(line[3]), int(line[4])])
+training_data_file.close()
+
+# ニューラルネットワークのインスタンス
+neural_network = NeuralNetwork()
+
+# 学習
+for t in range(0, 2121):
+    for data in training_data:
+        neural_network.learn(data)
+print(neural_network.w_im)  # 入力層と中間層の重みとバイアス
+print(neural_network.w_mo)  # 中間層と出力層の重みとバイアス
+
+# 実行
+data_to_commit = [
+[0.72,0.002,1,0,0],
+[0.505,0.002,1,0,0]
+]#1
+
+
+#############################################################################
+#↓以下グラフ表示のプロットの機能はない　精度判定のみ残した
+
+for data in data_to_commit:#新しく判断されるデータ
+
+    # data[0] = (float(data[0])+refer_point_0)/10
+    data[1] = float(data[1])
+
+position_ari_learned = [[], []]
+position_nasi_learned = [[], []]
+count=0#精度のため追加
+accuracy=0#精度のため追加
+for data in data_to_commit:  # 新しく判断されるデータ　　　
+
+    if neural_network.commit(data) > 0.5:
+        position_ari_learned[0].append(data[1])
+        position_ari_learned[1].append(data[0])
+        print(neural_network.commit(data),"興味あり判定")
+        if data[4] == 1:  # 精度のため追加
+            count = count + 1  # 精度のため追加
+        # print(position_ari_learned[0],position_nasi_learned[1])
+    else:
+        position_nasi_learned[0].append(data[1])
+        position_nasi_learned[1].append(data[0])
+        print(neural_network.commit(data),"興味なし判定")
+        if data[4] == 0:#精度のため追加
+            count = count + 1#精度のため追加
+# 訓練用データの表示の準備
+position_ari_learning = [[], []]
+position_nasi_learning = [[], []]
+for data in training_data:
+    if data[2] > 0.5:
+        position_ari_learning[0].append(data[1])
+        position_ari_learning[1].append(data[0])
+    else:
+        position_nasi_learning[0].append(data[1])
+        position_nasi_learning[1].append(data[0])
+
+
+
+accuracy=count/648#精度のため追加
+print(accuracy)#精度のため追加
+# print(accuracy_score(_true, _pred))
+
+
+# プロット　4軸表現はグラフにプロットできなかったためコメントアウト
+# plt.scatter(position_ari_learning[0], position_ari_learning[1], c="red", label="ari_learn", marker="+")
+# plt.scatter(position_nasi_learning[0], position_nasi_learning[1], c="blue", label="nasi_learn", marker="+")
+# plt.scatter(position_ari_learned[0], position_ari_learned[1], c="red", label="ari", marker="o")
+# plt.scatter(position_nasi_learned[0], position_nasi_learned[1], c="blue", label="nasi", marker="o")
+#
+# plt.xlabel('time')
+# plt.ylabel('change')
+# plt.legend()
+# plt.show()
